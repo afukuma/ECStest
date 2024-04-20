@@ -1,0 +1,320 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  MyIP:
+    Type: String
+
+Mappings: 
+  CONST:
+    ENV:
+      PREFIX: test
+    VPC:
+      CIDR: 192.168.100.0/24
+
+Resources:
+  VPC: 
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: !FindInMap [ CONST, VPC, CIDR ]
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: 
+        - Key: Name
+          Value: !Sub 
+            - ${envname}-vpc
+            - envname: !FindInMap [ CONST, ENV, PREFIX ]
+  # Subnet /26
+  SubnetPublic01: 
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Ref "AWS::Region"
+      CidrBlock:  
+        !Select [ 0, !Cidr [ !GetAtt VPC.CidrBlock, 4, 6 ]]
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub 
+            - ${envname}-subnet-Public01
+            - envname: !FindInMap [ CONST, ENV, PREFIX ]
+  SubnetPublic02: 
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select
+        - 1
+        - Fn::GetAZs: !Ref "AWS::Region"
+      CidrBlock:  
+        !Select [ 1, !Cidr [ !GetAtt VPC.CidrBlock, 4, 6 ]]
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub 
+            - ${envname}-subnet-Public02
+            - envname: !FindInMap [ CONST, ENV, PREFIX ]
+  SubnetPrivate01: 
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Ref "AWS::Region"
+      CidrBlock:  
+        !Select [ 2, !Cidr [ !GetAtt VPC.CidrBlock, 4, 6 ]]
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub 
+            - ${envname}-subnet-Private01
+            - envname: !FindInMap [ CONST, ENV, PREFIX ]
+  SubnetPrivate02: 
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select
+        - 1
+        - Fn::GetAZs: !Ref "AWS::Region"
+      CidrBlock:  
+        !Select [ 3, !Cidr [ !GetAtt VPC.CidrBlock, 4, 6 ]]
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub 
+            - ${envname}-subnet-Private02
+            - envname: !FindInMap [ CONST, ENV, PREFIX ]
+  # RouteTable
+  RouteTablePublic: 
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref VPC
+      Tags: 
+        - Key: Name
+          Value: !Sub 
+            - ${envname}-rt-public
+            - envname: !FindInMap [ CONST, ENV, PREFIX ]
+  RouteTablePrivate: 
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref VPC
+      Tags: 
+        - Key: Name
+          Value: !Sub 
+            - ${envname}-rt-private
+            - envname: !FindInMap [ CONST, ENV, PREFIX ]
+  # SubnetRouteTableAssociation
+  SubnetRouteTableAssociationPublic01: 
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      SubnetId: !Ref SubnetPublic01
+      RouteTableId: !Ref RouteTablePublic
+  SubnetRouteTableAssociationPublic02: 
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      SubnetId: !Ref SubnetPublic02
+      RouteTableId: !Ref RouteTablePublic
+  SubnetRouteTableAssociationPrivate01: 
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      SubnetId: !Ref SubnetPrivate01
+      RouteTableId: !Ref RouteTablePrivate
+  SubnetRouteTableAssociationPrivate02: 
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      SubnetId: !Ref SubnetPrivate02
+      RouteTableId: !Ref RouteTablePrivate
+  ## Gateways
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub 
+            - ${tagname}-igw
+            - tagname: !FindInMap [ CONST, ENV, PREFIX ]
+  VPCGatewayAttachmentIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  ## NAT
+#  EIPNAT:
+#    Type: AWS::EC2::EIP
+#    Properties:
+#      Domain: vpc
+#  NAT:
+#    Type: AWS::EC2::NatGateway
+#    Properties:
+#      AllocationId: !GetAtt 
+#        - EIPNAT
+#        - AllocationId
+#      SubnetId: !Ref SubnetPublic01
+  ## Route
+  RoutePublic:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      GatewayId: !Ref InternetGateway
+      DestinationCidrBlock: "0.0.0.0/0"
+#  RoutePrivate:
+#    Type: AWS::EC2::Route
+#    Properties:
+#      RouteTableId: !Ref RouteTablePrivate
+#      NatGatewayId: !Ref NAT
+#      DestinationCidrBlock: "0.0.0.0/0"
+
+  # https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/creating-resources-with-cloudformation.html
+  # Role for ECS Tasks
+  ## ECR・SSM Parameter・SecretsManager
+  RoleECSTasksExecution:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      #Path: '/service-role/'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: inlinePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetLifecyclePolicyPreview
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:DescribeImages
+                  - ecr:ListTagsForResource
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetLifecyclePolicy
+                  - ecr:GetRepositoryPolicy
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ssm:GetParameters
+                  - secretsmanager:GetSecretValue
+                Resource: "*"
+  ## ECR・SSM Parameter・SecretsManager
+  RoleECSTasks:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: inlinePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:*
+                Resource: "*"
+
+  # Logs Group
+  LogGroupECS:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Properties: 
+      LogGroupName: /ecs/fargate-task-definition
+      RetentionInDays: 3
+  # Security Group for ECS  
+  SecurityGroupECS:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub 
+        - ${envname}-sg-ecs
+        - envname: !FindInMap [ CONST, ENV, PREFIX ]
+      GroupDescription: '-'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: !GetAtt VPC.CidrBlock
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Sub ${MyIP}/32
+      Tags: 
+        - Key: Name
+          Value: !Sub 
+            - ${envname}-sg-ecs
+            - envname: !FindInMap [ CONST, ENV, PREFIX ]
+
+  # ECS
+  ## ECS Cluster
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties: 
+      ClusterName: CFNCluster
+  ## TaskDefintion
+  TaskDefinitionECS:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Command:
+            - >-
+              /bin/sh -c "echo '<html> <head> <title>Amazon ECS Sample
+              App 40</title> <style>body {margin-top: 40px; background-color:
+              #333;} </style> </head><body> <div
+              style=color:white;text-align:center> <h1>Amazon ECS Sample
+              App</h1> <h2>Congratulations!</h2> <p>Your application is now
+              running on a container in Amazon ECS.</p> </div></body></html>' > 
+              /usr/local/apache2/htdocs/index.html && httpd-foreground"
+          EntryPoint:
+            - sh
+            - '-c'
+          Essential: true
+          Image: 'httpd:2.4'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroupECS
+              awslogs-region: ap-northeast-1 #us-east-1
+              awslogs-stream-prefix: ecs
+          Name: sample-fargate-app
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: tcp
+      Cpu: '256'
+      ExecutionRoleArn: !GetAtt RoleECSTasksExecution.Arn
+      TaskRoleArn: !GetAtt RoleECSTasks.Arn  # 環境変数のSecrets Managerに接続するなど
+      Family: task-definition-cfn
+      Memory: '512'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      RuntimePlatform:
+        OperatingSystemFamily: LINUX
+  ## ECS Service
+  ECSServiceWebAPP:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: web-app
+      Cluster: !Ref ECSCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref SecurityGroupECS
+          Subnets:
+            - !Ref SubnetPublic01
+      TaskDefinition: !Ref TaskDefinitionECS
+
+
+
+

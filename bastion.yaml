@@ -1,0 +1,55 @@
+
+  ## Role for EC2
+  RoleEC2Instance:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 
+        - '${envname}-EC2-Role'
+        - envname: !FindInMap [ CONST, ENV, PREFIX ]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Policies:
+        - PolicyName: inlinePolicy01
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:Get*'
+                  - 's3:List*'
+                  - 's3:Put*'
+                Resource:
+                  - !Sub 
+                    - "arn:${AWS::Partition}:s3:::${s3bucket}/*"
+                    - { s3bucket: !FindInMap [ CONST,  S3BUCKET, WORK]}
+  ## InstanceProfile
+  InstanceProfileEC2:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub 
+        - ${envname}-instanceprofile
+        - envname: !FindInMap [ CONST, ENV, PREFIX ]
+      Path: /
+      Roles:
+        - !Ref RoleEC2Instance
+  ## KeyPair
+  KeyPairCommon:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub 
+        - ${envname}-kp
+        - envname: !FindInMap [ CONST, ENV, PREFIX ]
+
+  
