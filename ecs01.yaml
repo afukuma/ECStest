@@ -257,9 +257,9 @@ Resources:
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties: 
-      ClusterName: CFNCluster
+      ClusterName: WebAppCluster
   ## TaskDefintion
-  TaskDefinitionECS:
+  TaskDefinitionECSWebAPP:
     Type: AWS::ECS::TaskDefinition
     Properties:
       ContainerDefinitions:
@@ -298,7 +298,7 @@ Resources:
         - FARGATE
       RuntimePlatform:
         OperatingSystemFamily: LINUX
-  ## ECS Service
+  ## ECS Service WebAPP
   ECSServiceWebAPP:
     Type: AWS::ECS::Service
     Properties:
@@ -313,7 +313,87 @@ Resources:
             - !Ref SecurityGroupECS
           Subnets:
             - !Ref SubnetPublic01
-      TaskDefinition: !Ref TaskDefinitionECS
+      TaskDefinition: !Ref TaskDefinitionECSWebAPP
+
+
+
+  ECSClusterBatch:
+    Type: AWS::ECS::Cluster
+    Properties: 
+      ClusterName: BatchCluster
+
+  ## TaskDefintion
+  TaskDefinitionECSBatch01:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: task-definition-batch01
+      ContainerDefinitions:
+        - Name: sample-fargate-app-batch-01
+          Command:
+            - echo hello
+            - echo world
+          EntryPoint:
+            - sh
+            - '-c'
+          Essential: true
+          Image: 'httpd:2.4'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroupECS
+              awslogs-region: ap-northeast-1 #us-east-1
+              awslogs-stream-prefix: ecs
+         
+          # PortMappings:
+          #   - ContainerPort: 80
+          #     HostPort: 80
+          #     Protocol: tcp
+      Cpu: '256'
+      ExecutionRoleArn: !GetAtt RoleECSTasksExecution.Arn
+      TaskRoleArn: !GetAtt RoleECSTasks.Arn  # 環境変数のSecrets Managerに接続するなど
+      Memory: '512'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      RuntimePlatform:
+        OperatingSystemFamily: LINUX
+
+  TaskDefinitionECSBatch02:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: task-definition-batch02
+      ContainerDefinitions:
+        - Name: sample-fargate-app-batch-02
+          Command:
+            - echo hello
+            - echo world
+          EntryPoint:
+            - sh
+            - '-c'
+          Essential: true
+          Image: 'httpd:2.4'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroupECS
+              awslogs-region: ap-northeast-1 #us-east-1
+              awslogs-stream-prefix: ecs
+         
+          # PortMappings:
+          #   - ContainerPort: 80
+          #     HostPort: 80
+          #     Protocol: tcp
+      Cpu: '256'
+      ExecutionRoleArn: !GetAtt RoleECSTasksExecution.Arn
+      TaskRoleArn: !GetAtt RoleECSTasks.Arn  # 環境変数のSecrets Managerに接続するなど
+      Memory: '512'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      RuntimePlatform:
+        OperatingSystemFamily: LINUX
+
+
 
 
 

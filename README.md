@@ -46,12 +46,65 @@ ECRの指定リビジョンが更新された時、aws cfn deploy にパラメ�
 2. CLIでリビジョン作成する
 3. SFNで指定する（LATESTとしておけば変更不要）
 
-+ ECSService の TaskDefinition は必須ではない。TaskDefは Cfn対象外として運用範疇とする
++ ECSService の TaskDefinition は必須。-> 必要なタスク定義はCFNで準備しておく必要がある
+  しかも1：１orz
+
+https://qiita.com/RyoMar/items/06e23d60d9df2d955221
+サービスはいらない様子
+
+
 
 [register-task-definition](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ecs/register-task-definition.html)
 [describe-task-definitionで取得したJSONはそのままではregister-task-definitionで登録できないお話](https://dev.classmethod.jp/articles/describe-task-definition-to-register-task-definition/)
 
 -> WebアプリだとNG: Serviceからどのリビジョンを指定するかわからないので
+
+#### TODO
++ １サービス内に複数タスクが起動できるか？？  -> サービス不要 Cluster＋TaskDefで構成
++ 処理終了後にタスクが終わるか？  -> する
+ 
+AL2023 でコマンドをセットしたタスク定義を複数準備する（CLIで作成する）
+aws s3 で標準出力をオブジェクト出力するコマンド
+aws cliでruntaskを実行
+
+```bash
+CLUSTER_NAME=BatchCluster
+SUBNET_ID=subnet-
+SECURITY_GROUP_ID=sg- 
+TASK_DEF_ARN=arn:aws:ecs:ap-northeast-1:463389754164:task-definition/task-definition-batch01:2
+
+aws ecs run-task --cluster $CLUSTER_NAME --task-definition $TASK_DEF_ARN \
+  --network-configuration awsvpcConfiguration="{subnets=[\"$SUBNET_ID\"],securityGroups=[\"$SECURITY_GROUP_ID\"],assignPublicIp=ENABLED}"  --launch-type FARGATE
+
+```
+
+[Step Functions で Amazon ECS または Fargate タスクを管理する](https://docs.aws.amazon.com/ja_jp/step-functions/latest/dg/connect-ecs.html#connect-ecs-pass-to)
+
+Commandの上書きが可能な様子
+```json
+{
+ "StartAt": "Run an ECS Task and wait for it to complete",
+ "States": {
+   "Run an ECS Task and wait for it to complete": {
+     "Type": "Task",
+     "Resource": "arn:aws:states:::ecs:runTask.sync",
+     "Parameters": {
+                "Cluster": "cluster-arn",
+                "TaskDefinition": "job-id",
+                "Overrides": {
+                    "ContainerOverrides": [
+                        {
+                            "Name": "container-name",
+                            "Command.$": "$.commands" 
+                        }
+                    ]
+                }
+            },
+     "End": true
+    }
+  }
+}
+```
 
 
 ## STep Functions のASLファイルはS3格納できる
