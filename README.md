@@ -124,7 +124,8 @@ https://speakerdeck.com/hisamouna/shu-bai-yi-shang-noyang-nahatutikadong-iteiruh
 ## CloudFormationのロール
 ユーザに対するロールがcfn deployのみで済む
 ⭐️方法を探す（あっったはず）
- 
+
+[CloudFormationサービスロールの概要と注意点](https://go-to-k.hatenablog.com/entry/2021/08/09/000812)
 
 ## RDS
 
