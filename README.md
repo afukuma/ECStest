@@ -106,6 +106,10 @@ Commandの上書きが可能な様子
 }
 ```
 
+CloudTrailでのECR Pullイベントが非常におぽくなり、GuardDutyのコストが高くなった
+
+https://speakerdeck.com/hisamouna/shu-bai-yi-shang-noyang-nahatutikadong-iteiruhatutiji-pan-woecs-on-fargatekaraeks-on-ec2heyi-xing-sitahua?slide=17
+
 
 ## STep Functions のASLファイルはS3格納できる
 
@@ -122,5 +126,10 @@ Commandの上書きが可能な様子
 ⭐️方法を探す（あっったはず）
  
 
+## RDS
 
+[RDSにIAMデータベース認証でログインする](https://blog.serverworks.co.jp/rds-iamdblogin)
 
+```bash
+mysql -u [IAMデータベース認証ログインユーザ名] -h [RDSエンドポイント] -p`aws rds generate-db-auth-token --hostname [RDSエンドポイント] --port 3306 --username [IAMデータベース認証ログインユーザ名] --region ap-northeast-1` --enable-cleartext-plugin
+```
