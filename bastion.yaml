@@ -52,4 +52,78 @@
         - ${envname}-kp
         - envname: !FindInMap [ CONST, ENV, PREFIX ]
 
-  
+  # EC2
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupName: !Sub '${AWS::StackName}-ec2'
+      GroupDescription: '--'
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: !GetAtt VPC.CidrBlock
+  EC2KeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: KeyPairHogehoge
+  # EC2
+  Ec2InstanceOnPrivate:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiIdAmazonLinux2
+      InstanceType: t3.nano
+      # KeyName: !Ref EC2KeyPair
+      KeyName: 'kp-af' # !Ref EC2KeyPair  <- Error on Cfn-lint
+      NetworkInterfaces:
+        - DeviceIndex: '0'
+          GroupSet:
+            - !Ref EC2SecurityGroup
+          SubnetId: !Ref PrivateSubnet01
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          yum install httpd -y
+          echo "Test" > /var/www/html/index.html
+          systemctl enable --now httpd
+          systemctl enable --now amazon-ssm-agent
+
+
+  # ENI
+  NetworkInterfaceforEC2:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: for Coverity Platform11.
+      SourceDestCheck: 'false'
+      GroupSet:
+        - !Ref SecurityGroupEC2
+      SubnetId: !Ref SubnetPrivate01
+      PrivateIpAddress: !Ref EC2ENIEC2
+
+  ENISquid:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+        SourceDestCheck: 'false'
+        GroupSet:
+            - !Ref EC2SecurityGroupSquid
+        SubnetId: !Ref PublicSubnet01
+  ENISquidAttachment:
+    Type: AWS::EC2::NetworkInterfaceAttachment
+    Condition: isSquid
+    Properties:
+        InstanceId: !Ref Ec2InstanceSquid
+        NetworkInterfaceId: !Ref ENISquid
+        DeviceIndex: 1
+
+
+
+
+
+
+
+  LatestAmiIdAmazonLinux2023:
+    Type : AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64'
+
+
