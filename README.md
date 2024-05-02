@@ -9,6 +9,32 @@ aws cloudformation deploy --template-file ./ecs01.yaml --stack-name ecs01 \
 ```
 
 # Memo
+## Dockerfile
+https://blog.serverworks.co.jp/NewRelicAndDockerOnEC2_1#Dockerfileindexhtml%E3%81%AE%E4%BD%9C%E6%88%90
+
+```Dockerfile
+FROM amazonlinux:2023
+RUN yum update -y \
+    && yum install httpd -y
+# ポートの開放
+EXPOSE 80
+# Docker上のディレクトリにローカルファイルをコピー
+COPY index.html /var/www/html/index.html
+# コンテナ起動時に実行されるコマンド
+CMD ["/usr/sbin/httpd", "-DFOREGROUND"]
+```
+
+```html: index.html
+<html>
+    <body>
+        <h1>RUNNING !!</h1>
+    </body>
+</html>
+```
+
+
+
+
 ## ECS TaskDefinition 更新方法検討
 ### [x] Webアプリ CFN管理としてパラメータによりタスク定義を設定する
 Webアプリは、ECSサービスでリビジョンを指定する
