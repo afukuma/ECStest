@@ -9,6 +9,47 @@ aws cloudformation deploy --template-file ./ecs01.yaml --stack-name ecs01 \
 ```
 
 # Memo
+## CodeCommit
+### CodeCommit x IIC (SSO)
+
+[AWS CLIでAWS SSOを使用する](https://qiita.com/hapoon/items/ed48a99e2d6c8946756e)
+
+```aws configure sso``` コマンドでブラウザ経由で認可させる
+
+ウィザードを進めていけばconfigファイルにProfileが作成される 以下参照
+
+```.aws/config
+[profile skya]
+sso_session = my-sso
+sso_account_id = 905********
+sso_role_name = AWSAdministratorAccess
+region = ap-northeast-1
+output = json
+[sso-session my-sso]
+sso_start_url = https://d-9*****.awsapps.com/start
+sso_region = ap-northeast-1
+sso_registration_scopes = sso:account:access
+```
+
+gitconfigに以下設定
+
+```.gitconfig
+[credential "https://git-codecommit.ap-northeast-1.amazonaws.com"]
+    helper = !aws --profile skya codecommit credential-helper $@
+    UseHttpPath = true
+```
+
+#### 使い方
+aws sso login --profile <プロファイル名>
+
+git clone https://git-codecommit.ap-northeast-1.amazonaws.com/v1/repos/<リポジトリ名>
+認証ウィンドウが表示されるが、✕で終了
+
+
+
+
+
+
 ## Dockerfile
 https://blog.serverworks.co.jp/NewRelicAndDockerOnEC2_1#Dockerfileindexhtml%E3%81%AE%E4%BD%9C%E6%88%90
 
