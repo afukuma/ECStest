@@ -1,0 +1,160 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  InitStack:
+    Type: String
+    Default: cov-init
+  EC2InstanceID:
+    Type: String
+  isActionsEnabled:
+    Type: String
+    AllowedValues: ["true", "false"]
+Resources:
+  # CPUUtilization
+  AlarmEC2CpuUsedPercent:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+        - {'Fn::ImportValue': !Sub '${InitStack}-snsticket'}
+      ActionsEnabled: !Ref isActionsEnabled
+      AlarmName: "cpu load average over"
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Statistic: Average
+      Period: 300
+      Threshold: 80
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref EC2InstanceID
+  
+  # StatusCheckFailed
+  AlarmEC2InstanceStatus:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+        - {'Fn::ImportValue': !Sub '${InitStack}-snsticket'}
+      ActionsEnabled: !Ref isActionsEnabled
+      AlarmName: "instance status check failed"
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed
+      Statistic: Average
+      Period: 60
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref EC2InstanceID
+
+  # mem_used_percent
+  AlarmEC2MemUsedPercent:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+        - {'Fn::ImportValue': !Sub '${InitStack}-snsticket'}
+      ActionsEnabled: !Ref isActionsEnabled
+      AlarmName: "memory used percent"
+      Namespace: CWAgent
+      MetricName: mem_used_percent
+      Statistic: Average
+      Period: 60
+      Threshold: 80
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 10
+      DatapointsToAlarm: 5
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref EC2InstanceID
+
+  # disk_used_percent
+  AlarmEC2DiskUsedPercent:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+        - {'Fn::ImportValue': !Sub '${InitStack}-snsticket'} 
+      ActionsEnabled: !Ref isActionsEnabled
+      AlarmName: "disk used percent"
+      Namespace: CWAgent
+      MetricName: disk_used_percent
+      Statistic: Maximum
+      Period: 600
+      Threshold: 80
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref EC2InstanceID
+        - Name: path
+          Value: /
+        - Name: fstype
+          Value: xfs
+
+  #  license
+  AlarmCoverityLicense:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+        - {'Fn::ImportValue': !Sub '${InitStack}-snsticket'} 
+      ActionsEnabled: !Ref isActionsEnabled
+      AlarmName: "license"
+      Namespace: Coverity
+      MetricName: LicenseUtilization
+      Statistic: Maximum
+      Period: 3600
+      Threshold: 80
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      TreatMissingData: notBreaching
+
+  # admin login
+  AlarmCoverityAdminLogin:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+        - {'Fn::ImportValue': !Sub '${InitStack}-snsemail'} 
+      ActionsEnabled: !Ref isActionsEnabled
+      AlarmName: "admin login"
+      Namespace: Coverity
+      MetricName: UserLoginCount-admin
+      Statistic: Maximum
+      Period: 60
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      TreatMissingData: notBreaching
+
+
+#############
+  # UserLogin-admin 
+  MetricFilterUserLogin:
+    Type: AWS::Logs::MetricFilter
+    Properties: 
+      FilterName: UserLoginCount-admin
+      FilterPattern: '"\"@type\":\"LogInEvent\"" "\"userName\":\"admin\""'
+      LogGroupName: {'Fn::ImportValue': !Sub '${InitStack}-logcov1'} 
+      MetricTransformations: 
+        - MetricName: UserLoginCount-admin
+          MetricNamespace: Coverity
+          MetricValue: 1
+          Unit: Count
+
+
+# NameSpace / MetricsName
+# RDS DatabaseConnections  １時間最大1000
+# RDS CPUUtilization 95%
+# RDS Memory
+# ECS CPU
+# ECS MEMORY
+# ALB 500
+
+# メトリクスフィルタ：ロググループ単位　WebApp側を別で作成する 
